@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FedRAMP Asset Tracker - IBM Automation</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f0f4f8; color: #1a1a2e; padding-bottom: 40px; }
+  header { background: #1F3864; color: #fff; padding: 24px 32px; }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.78; margin-top: 6px; }
+  .quick-links { background: #2a4a7c; padding: 12px 32px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .quick-links span { color: #fff; font-size: 13px; font-weight: 600; }
+  .quick-links a { color: #fff; text-decoration: none; padding: 6px 14px; background: rgba(255,255,255,0.15); border-radius: 4px; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+  .quick-links a:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
+  .quick-links a::before { content: "🔗"; font-size: 12px; }
+  .legend { display: flex; gap: 18px; padding: 14px 32px; background: #fff; border-bottom: 1px solid #ddd; flex-wrap: wrap; font-size: 13px; align-items: center; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+  .stats { padding: 20px 32px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat-card { background: #fff; padding: 16px 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); min-width: 180px; }
+  .stat-card h3 { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-card .number { font-size: 28px; font-weight: 700; color: #1F3864; }
+  .wrap { padding: 0 32px 24px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  th, td { padding: 11px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid #e6e6e6; vertical-align: top; }
+  thead th { background: #1F3864; color: #fff; font-weight: 700; position: sticky; top: 0; }
+  td.prod { font-weight: 700; }
+  td.notes { color: #555; font-size: 12px; max-width: 260px; }
+  td.touchpoints { font-size: 11px; min-width: 200px; }
+  .touchpoint-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .touchpoint-item label { font-weight: 600; color: #666; min-width: 85px; }
+  .touchpoint-item input[type="date"] { padding: 3px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; }
+  .touchpoint-item input[type="date"]:focus { outline: none; border-color: #1F3864; }
+  .unassigned { color: #9C0006; font-weight: 700; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+  .pill:hover { transform: scale(1.05); opacity: 0.9; }
+  .pill.done { background: #C6EFCE; color: #006100; }
+  .pill.draft, .pill.outdated { background: #FFEB9C; color: #7a5c00; }
+  .pill.missing { background: #FFC7CE; color: #9C0006; }
+  tbody tr:hover { background: #f7f9fc; }
+  .filter-bar { padding: 16px 32px; background: #fff; border-bottom: 1px solid #ddd; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .filter-bar label { font-size: 13px; font-weight: 600; }
+  .filter-bar select { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+  .filter-bar button { padding: 6px 16px; background: #1F3864; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .filter-bar button:hover { background: #2a4a7c; }
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+  .modal-content { background: #fff; margin: 10% auto; padding: 24px; width: 90%; max-width: 500px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  .modal-content h2 { margin-bottom: 16px; color: #1F3864; }
+  .modal-content label { display: block; margin: 12px 0 4px; font-size: 13px; font-weight: 600; }
+  .modal-content select, .modal-content input, .modal-content textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+  .modal-content textarea { min-height: 60px; resize: vertical; }
+  .modal-buttons { display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end; }
+  .modal-buttons button { padding: 8px 20px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .btn-save { background: #1F3864; color: #fff; }
+  .btn-save:hover { background: #2a4a7c; }
+  .btn-cancel { background: #ddd; color: #333; }
+  .btn-cancel:hover { background: #ccc; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FedRAMP Asset Tracker</h1>
+  <p>IBM Automation portfolio &middot; Required per product: Client One Pager, Internal One Pager, Internal Enablement Deck, Feature Parity Document</p>
+</header>
+
+<div class="quick-links">
+  <span>Quick Links:</span>
+  <a href="https://ibm.seismic.com/apps/doccenter/5477419a-9474-4c51-94af-b442e9169fab/doc/%25252Fdd98c5a3df-6b7c-1d77-6f07-d12e63954c78%25252FdfOTRiYmU4NTQtNWY4NC03Y2QyLWZjYWUtOGIxYmFmZjkyZThk%25252CPT0%25253D%25252CUm91bmR1cCBvciBzdW1tYXJ5%25252Flf2176286f-9bf8-4b01-98e8-33483f6d2157//?mode=view&searchId=004b0d83-20f2-480e-b6e3-410a2500c1a5&anchorId=ed7bc69f-3bcb-4533-a574-8c04a2be8d95" target="_blank">Seismic</a>
+  <a href="https://ibm.box.com/s/9oip8kp135d9qi26z73fcnea0u1g38hx" target="_blank">Email Templates</a>
+  <a href="https://ibm.box.com/s/rpisup3bycj2c0kmw2quobdb759715np" target="_blank">Box Note</a>
+</div>
+
+<div class="legend">
+  <span><span class="swatch" style="background:#C6EFCE"></span> Done</span>
+  <span><span class="swatch" style="background:#FFEB9C"></span> Draft / Outdated</span>
+  <span><span class="swatch" style="background:#FFC7CE"></span> Missing / Unassigned</span>
+</div>
+
+<div class="stats">
+  <div class="stat-card">
+    <h3>Total Products</h3>
+    <div class="number" id="totalProducts">10</div>
+  </div>
+  <div class="stat-card">
+    <h3>Completed Assets</h3>
+    <div class="number" id="completedAssets">6</div>
+  </div>
+  <div class="stat-card">
+    <h3>In Progress</h3>
+    <div class="number" id="inProgress">2</div>
+  </div>
+  <div class="stat-card">
+    <h3>Unassigned</h3>
+    <div class="number" id="unassigned">3</div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <label>Filter by Status:</label>
+  <select id="statusFilter">
+    <option value="all">All Products</option>
+    <option value="complete">Complete</option>
+    <option value="incomplete">Incomplete</option>
+    <option value="unassigned">Unassigned</option>
+  </select>
+  <button onclick="exportData()">Export to JSON</button>
+  <button onclick="resetFilters()">Reset</button>
+</div>
+
+<div class="wrap">
+  <table id="trackerTable">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Owner(s)</th>
+        <th>Client One Pager</th>
+        <th>Internal One Pager</th>
+        <th>Enablement Deck</th>
+        <th>Feature Parity</th>
+        <th>Notes</th>
+        <th>Contact Touchpoints</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+  </table>
+</div>
+
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h2>Edit Product Status</h2>
+    <label>Product:</label>
+    <input type="text" id="editProduct" readonly>
+    <label>Owner(s):</label>
+    <input type="text" id="editOwner">
+    <label>Client One Pager:</label>
+    <select id="editStatus0">
+      <option value="done">Done</option>
+      <option value="draft">Draft</option>
+      <option value="outdated">Outdated</option>
+      <option value="missing">Missing</option>
+    </select>
+    <label>Internal One Pager:</label>
+    <select id="editStatus1">
+      <option value="done">Done</option>
+      <option value="draft">Draft</option>
+      <option value="outdated">Outdated</option>
+      <option value="missing">Missing</option>
+    </select>
+    <label>Enablement Deck:</label>
+    <select id="editStatus2">
+      <option value="done">Done</option>
+      <option value="draft">Draft</option>
+      <option value="outdated">Outdated</option>
+      <option value="missing">Missing</option>
+    </select>
+    <label>Feature Parity:</label>
+    <select id="editStatus3">
+      <option value="done">Done</option>
+      <option value="draft">Draft</option>
+      <option value="outdated">Outdated</option>
+      <option value="missing">Missing</option>
+    </select>
+    <label>Notes:</label>
+    <textarea id="editNotes"></textarea>
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveChanges()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const defaultProducts = [
+  {name: "Turbonomic", owner: "Saloni Sanghvi, Sagar Shetty", statuses: ["done","done","done","missing"], notes: "Furthest along. Feature parity is the only remaining gap.", touchpoints: ["","",""]},
+  {name: "Instana", owner: "John Deegan, Akash Thampi", statuses: ["done","draft","done","missing"], notes: "Enablement replay available. Internal one pager in feedback stage.", touchpoints: ["","",""]},
+  {name: "WebMethods", owner: "Nishant Nair, Hank Bailey, Enrique Gallegos", statuses: ["missing","missing","outdated","missing"], notes: "Deck has stale target dates (03/26, 04/26, 05/26). Needs revision.", touchpoints: ["","",""]},
+  {name: "Concert", owner: "Pieter de Villiers", statuses: ["missing","missing","missing","missing"], notes: "Owner identified, no completed assets on file.", touchpoints: ["","",""]},
+  {name: "MaaS360", owner: "Juraj Hajducik", statuses: ["missing","missing","missing","missing"], notes: "Owner identified, no completed assets on file.", touchpoints: ["","",""]},
+  {name: "Verify", owner: "Bob Slocum", statuses: ["missing","missing","missing","missing"], notes: "Owner identified, no completed assets on file.", touchpoints: ["","",""]},
+  {name: "Maximo / MREF", owner: "Christy Pooler, Anand Nayak", statuses: ["missing","missing","missing","missing"], notes: "Owner identified, no completed assets on file.", touchpoints: ["","",""]},
+  {name: "Apptio", owner: "UNASSIGNED", statuses: ["missing","missing","missing","missing"], notes: "No owner assigned. Needs owner before anything moves.", touchpoints: ["","",""]},
+  {name: "Cloudability", owner: "Matt Gerow, Bala Kaliamurthy", statuses: ["missing","missing","missing","missing"], notes: "No owner assigned. Needs owner before anything moves.", touchpoints: ["","",""]},
+  {name: "Confluent", owner: "UNASSIGNED", statuses: ["missing","missing","missing","missing"], notes: "No owner assigned. Needs owner before anything moves.", touchpoints: ["","",""]},
+];
+
+// Load from localStorage or use defaults
+let products = JSON.parse(localStorage.getItem('fedRAMPProducts')) || defaultProducts;
+
+const labels = {done: "Done", draft: "Draft", outdated: "Outdated", missing: "Missing"};
+let currentEditIndex = -1;
+
+function saveToLocalStorage() {
+  localStorage.setItem('fedRAMPProducts', JSON.stringify(products));
+}
+
+function renderTable(filter = 'all') {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  
+  let filteredProducts = products;
+  if (filter === 'complete') {
+    filteredProducts = products.filter(p => p.statuses.every(s => s === 'done'));
+  } else if (filter === 'incomplete') {
+    filteredProducts = products.filter(p => p.statuses.some(s => s !== 'done'));
+  } else if (filter === 'unassigned') {
+    filteredProducts = products.filter(p => p.owner === 'UNASSIGNED');
+  }
+  
+  filteredProducts.forEach((product, index) => {
+    const realIndex = products.indexOf(product);
+    const ownerClass = product.owner === 'UNASSIGNED' ? ' class="unassigned"' : '';
+    const statusCells = product.statuses.map((s, i) =>
+      `<td><span class="pill ${s}" onclick="quickEdit(${realIndex}, ${i})">${labels[s]}</span></td>`
+    ).join('');
+    
+    const touchpointsCell = `<td class="touchpoints" onclick="event.stopPropagation()">
+      <div class="touchpoint-item">
+        <label>Touchpoint 1:</label>
+        <input type="date" value="${product.touchpoints[0]}" onchange="updateTouchpoint(${realIndex}, 0, this.value)">
+      </div>
+      <div class="touchpoint-item">
+        <label>Touchpoint 2:</label>
+        <input type="date" value="${product.touchpoints[1]}" onchange="updateTouchpoint(${realIndex}, 1, this.value)">
+      </div>
+      <div class="touchpoint-item">
+        <label>Touchpoint 3:</label>
+        <input type="date" value="${product.touchpoints[2]}" onchange="updateTouchpoint(${realIndex}, 2, this.value)">
+      </div>
+    </td>`;
+    
+    const row = `<tr onclick="openModal(${realIndex})">
+      <td class="prod">${product.name}</td>
+      <td${ownerClass}>${product.owner}</td>
+      ${statusCells}
+      <td class="notes">${product.notes}</td>
+      ${touchpointsCell}
+    </tr>`;
+    tbody.innerHTML += row;
+  });
+  
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('totalProducts').textContent = products.length;
+  
+  let completed = 0;
+  let inProgress = 0;
+  let unassignedCount = 0;
+  
+  products.forEach(p => {
+    const doneCount = p.statuses.filter(s => s === 'done').length;
+    if (doneCount === 4) completed++;
+    else if (doneCount > 0) inProgress++;
+    if (p.owner === 'UNASSIGNED') unassignedCount++;
+  });
+  
+  document.getElementById('completedAssets').textContent = completed * 4 + products.reduce((sum, p) => 
+    sum + p.statuses.filter(s => s === 'done').length, 0) - (completed * 4);
+  document.getElementById('inProgress').textContent = inProgress;
+  document.getElementById('unassigned').textContent = unassignedCount;
+}
+
+function updateTouchpoint(productIndex, touchpointIndex, value) {
+  products[productIndex].touchpoints[touchpointIndex] = value;
+  saveToLocalStorage();
+}
+
+function quickEdit(productIndex, statusIndex) {
+  event.stopPropagation();
+  const statuses = ['missing', 'draft', 'outdated', 'done'];
+  const current = products[productIndex].statuses[statusIndex];
+  const currentIdx = statuses.indexOf(current);
+  const nextIdx = (currentIdx + 1) % statuses.length;
+  products[productIndex].statuses[statusIndex] = statuses[nextIdx];
+  saveToLocalStorage();
+  renderTable(document.getElementById('statusFilter').value);
+}
+
+function openModal(index) {
+  currentEditIndex = index;
+  const product = products[index];
+  document.getElementById('editProduct').value = product.name;
+  document.getElementById('editOwner').value = product.owner;
+  document.getElementById('editStatus0').value = product.statuses[0];
+  document.getElementById('editStatus1').value = product.statuses[1];
+  document.getElementById('editStatus2').value = product.statuses[2];
+  document.getElementById('editStatus3').value = product.statuses[3];
+  document.getElementById('editNotes').value = product.notes;
+  document.getElementById('editModal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('editModal').style.display = 'none';
+  currentEditIndex = -1;
+}
+
+function saveChanges() {
+  if (currentEditIndex === -1) return;
+  
+  products[currentEditIndex].owner = document.getElementById('editOwner').value;
+  products[currentEditIndex].statuses[0] = document.getElementById('editStatus0').value;
+  products[currentEditIndex].statuses[1] = document.getElementById('editStatus1').value;
+  products[currentEditIndex].statuses[2] = document.getElementById('editStatus2').value;
+  products[currentEditIndex].statuses[3] = document.getElementById('editStatus3').value;
+  products[currentEditIndex].notes = document.getElementById('editNotes').value;
+  
+  saveToLocalStorage();
+  renderTable(document.getElementById('statusFilter').value);
+  closeModal();
+}
+
+function exportData() {
+  const dataStr = JSON.stringify(products, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'fedramp_tracker_data.json';
+  link.click();
+}
+
+function resetFilters() {
+  document.getElementById('statusFilter').value = 'all';
+  renderTable('all');
+}
+
+document.getElementById('statusFilter').addEventListener('change', (e) => {
+  renderTable(e.target.value);
+});
+
+window.onclick = function(event) {
+  const modal = document.getElementById('editModal');
+  if (event.target === modal) {
+    closeModal();
+  }
+}
+
+renderTable();
+</script>
+</body>
+</html>
